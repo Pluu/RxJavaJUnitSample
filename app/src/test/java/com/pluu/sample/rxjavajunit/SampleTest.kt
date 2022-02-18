@@ -1,7 +1,7 @@
 package com.pluu.sample.rxjavajunit
 
 import com.pluu.sample.rxjavajunit.utils.RxJavaUncaughtErrorRule
-import io.reactivex.rxjava3.android.plugins.RxAndroidPlugins
+import com.pluu.sample.rxjavajunit.utils.TestHelper
 import io.reactivex.rxjava3.core.Single
 import io.reactivex.rxjava3.plugins.RxJavaPlugins
 import io.reactivex.rxjava3.schedulers.Schedulers
@@ -27,23 +27,19 @@ class SampleTest {
         RxJavaPlugins.setComputationSchedulerHandler {
             Schedulers.trampoline()
         }
-        RxAndroidPlugins.setMainThreadSchedulerHandler {
-            Schedulers.trampoline()
-        }
 
         sample = Sample()
     }
 
     @After
     fun tearDown() {
-        RxAndroidPlugins.reset()
         RxJavaPlugins.reset()
 
         sample.close()
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Sample
+    // Fail Case when subscribe
     ///////////////////////////////////////////////////////////////////////////
 
     @Test(expected = AssertionError::class)
@@ -81,6 +77,30 @@ class SampleTest {
     }
 
     ///////////////////////////////////////////////////////////////////////////
+    // EarlyFail Case
+    ///////////////////////////////////////////////////////////////////////////
+
+    private fun testCaseEarlyFail(callback: (Int) -> Unit) {
+        Single.just(1)
+            .map { it / 0 }
+            .subscribe { value ->
+                callback(value)
+            }
+    }
+
+    // RxJavaPlugins.setErrorHandler
+    @Test
+    fun sample_mockito_with_plugin() {
+        val errors = TestHelper.trackPluginErrors()
+
+        val mockCallback: (Int) -> Unit = mock()
+        testCaseEarlyFail(mockCallback)
+        verifyNoInteractions(mockCallback)
+
+        TestHelper.assertUndeliverable(errors, 0, ArithmeticException::class.java)
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
     // Parameter 1 Test
     ///////////////////////////////////////////////////////////////////////////
 
@@ -115,6 +135,19 @@ class SampleTest {
         val paramCapture = argumentCaptor<Int>()
         verify(mockCallback).invoke(paramCapture.capture())
         assertTrue(paramCapture.firstValue > 100)
+    }
+
+    // RxJavaPlugins.setErrorHandler
+    @Test
+    fun t1_success3() {
+        val errors = TestHelper.trackPluginErrors()
+
+        val mockCallback: (Int) -> Unit = mock()
+        sample.testParam1EarlyFail(mockCallback)
+
+        verifyNoInteractions(mockCallback)
+
+        TestHelper.assertUndeliverable(errors, 0, ArithmeticException::class.java)
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -160,6 +193,21 @@ class SampleTest {
         assertNull(argumentCaptor2.firstValue)
     }
 
+    // list : 1..10
+    // key : 1
+    // RxJavaPlugins.setErrorHandler
+    @Test
+    fun t2_success3() {
+        val errors = TestHelper.trackPluginErrors()
+
+        val mockCallback: (List<Int>, Int?) -> Unit = mock()
+        sample.testParam2EarlyFail(mockCallback)
+
+        verifyNoInteractions(mockCallback)
+
+        TestHelper.assertUndeliverable(errors, 0, ArithmeticException::class.java)
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     // Listener Param 1 Test
     ///////////////////////////////////////////////////////////////////////////
@@ -203,5 +251,18 @@ class SampleTest {
 
         verify(mockCallback, never()).callback1(any())
         verify(mockCallback, never()).callback2(any(), anyOrNull())
+    }
+
+    // RxJavaPlugins.setErrorHandler
+    @Test
+    fun t3_success3() {
+        val errors = TestHelper.trackPluginErrors()
+
+        val mockCallback: Sample.SampleListener = mock()
+        sample.testListenerParam1EarlyFail(mockCallback)
+
+        verifyNoInteractions(mockCallback)
+
+        TestHelper.assertUndeliverable(errors, 0, ArithmeticException::class.java)
     }
 }

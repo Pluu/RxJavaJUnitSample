@@ -5,6 +5,10 @@ import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import java.util.concurrent.LinkedBlockingDeque
 
+///////////////////////////////////////////////////////////////////////////
+// Origin : https://bryanherbst.com/2020/07/15/rxjava-uncaught-exception-tests
+///////////////////////////////////////////////////////////////////////////
+
 class RxJavaUncaughtErrorRule : TestWatcher() {
 
     private val errors = LinkedBlockingDeque<Throwable>()
